@@ -1,6 +1,7 @@
 import re
 import os
 import requests
+import wget
 import  tarfile
 from logging import Logger
 
@@ -8,35 +9,38 @@ from logging import Logger
 LOG = Logger(__name__)
 
 def download_file(url):
-    """
-        Function to download a file and return a tuple with file name and file content bytes.
-    """
-    resp = requests.get(url)
-    content_disposition = resp.headers['content-disposition']
-    file_name = re.findall("filename=(.+)", content_disposition)
-    return file_name[0], resp.content
+    LOG.warning(f'Downloading file from {url}...')
+    file_name = wget.download(url)
+    LOG.warning(f'{file_name} downloaded successfuly!')
+    return file_name
 
 
-def unpack_file(file_name):
+def unpack_file(file_name, destiny):
     """
         Function to unpack and delete a tar.gz file.
     """
-    LOG.warning(f'Unpacking {file}...')
-    tar = tarfile.open(file_name, 'r:gz')
-    LOG.warning(f'{file} Unpacked successfuly!')
-    LOG.warning(f'Removing {file}...')
-    tar.extractall('GEO_IP')
-    os.remove(file_name)
-    LOG.warning(f'{file} removed successfuly!')
 
-def write_file(file_name, file_content):
-    open(file_name, 'wb').write(file_content)
-    unpack_file(file_name)
+    geo_file_path = file_name.split('.')[0]
+    geo_file_name = file_name.split('_')[0]
     
+    LOG.warning(f'Unpacking {file_name}...')
+    tar = tarfile.open(file_name, 'r:gz')
+    file = tar.getmember(f'{geo_file_path}/{geo_file_name}.mmdb')
+    file.name =  os.path.basename(file.name)
+    tar.extract(file, destiny)
+    LOG.warning(f'{file_name} Unpacked successfuly!')
+    
+    LOG.warning(f'Removing {file_name}...')
+    os.remove(file_name)
+    LOG.warning(f'{file_name} removed successfuly!')
 
 if __name__ == '__main__':
-    file = download_file('https://geolite.maxmind.com/download/geoip/database/GeoLite2-City.tar.gz')
-    write_file(*file)
-    LOG.warning(file[0])
+    # Citys file
+    file_name = download_file('https://geolite.maxmind.com/download/geoip/database/GeoLite2-City.tar.gz')
+    unpack_file(file_name, 'GEO_IP')
 
-        
+    # Country file
+    file_name = download_file('https://geolite.maxmind.com/download/geoip/database/GeoLite2-Country.tar.gz')
+    unpack_file(file_name, 'GEO_IP')
+    
+    
